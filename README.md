@@ -25,6 +25,18 @@ Those experiments are implemented in Matlab.
 8. Run the file `UQ_Unet.py` to calculate hit rates on the test set for different methods to obtain confidence intervals (Algorithm 2 in the paper)
 9. Run the file `boxplot.py` and `confidence_intervals.py` for visual representation.
 
+## Cite
+
+If you use the method or the code, please cite the arXiv paper:
+```
+@article{hoppe2024nonasymp,
+  title={{Non-Asymptotic Uncertainty Quantification in High-Dimensional Learning}},
+  author={Hoppe, Frederik and Verdun, Claudio Mayrink and Laus, Hannah and Krahmer, Felix and Rauhut, Holger},
+  journal={arXiv preprint arXiv:},
+  year={2024},
+  doi={} 
+}
+```
 
 ## Requirements
 The following packages were used for running the Python code, other version might work as well.

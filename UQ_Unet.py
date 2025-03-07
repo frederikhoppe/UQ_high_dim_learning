@@ -17,20 +17,21 @@ mask_test_all = torch.load(os.path.join(path,"mask_test_all.pt"))
 kspace_test_all = torch.load(os.path.join(path,"kspace_test_all.pt"))
 tar_test_all = torch.load(os.path.join(path,"tar_test_all.pt"))
 epsilon_test_all = torch.load(os.path.join(path,"epsilon_test_all.pt"))
-hat_sigma_R2_j = torch.load(os.path.join(path_rest,"variance_restterm_matrix.pt"))
-hat_S_j = torch.load(os.path.join(path_rest,"restterm_expectation_matrix.pt"))
+hat_sigma_R2_j = torch.load(os.path.join(path_rest,"variance_restterm_real_matrix.pt"))
+hat_S_j = torch.load(os.path.join(path_rest,"restterm_expectation_real_matrix.pt"))
 variance_real = torch.load(os.path.join(path_rest,"variance_restterm_real.pt"))
 
 """Choose gamma calculated in finding_gamma.py, choose alpha and sigma."""
-gamma = 0.2196
+gamma = 0.2698
 sigma = 60
-alpha = 0.05
-alpha_real = 1.96 #is 1.96 for alpha=0.05, is 1.64 for alpha=0.1
+alpha = 0.1
+alpha_real = 1.64  #is 1.96 for alpha=0.05, is 1.64 for alpha=0.1
 l = 1372
 n = torch.sum(mask_test_all[0][0]).cpu()
+a = np.random.normal(0, 1, 100000)
 
 """Calculate new confidence radius"""
-term1 = (np.sqrt(sigma**2 /n)) * np.sqrt(np.log(1 / (gamma * alpha)))
+term1 = (np.sqrt(((sigma**2)/2)/n)) *np.quantile(a,1-(gamma*alpha/2))
 term2 = np.sqrt((l**2 - 1) / (l**2 * (1 - gamma) * alpha - l)) * np.sqrt(hat_sigma_R2_j)
 delta_matrix = term1 + term2 + hat_S_j
 
@@ -45,14 +46,14 @@ error_l2 =[]
 deb_error_l2 = []
 hitrates_support_matrix = []
 hitrates_all_matrix = []
-hitrates_support_asymp = []
-hitrates_all_asymp = []
+hitrates_support_old = []
+hitrates_all_old = []
 hitrates_all_gauss = []
 hitrates_support_gauss = []
 num_exp = 100
-
+print(rec_test_all.shape)
 """Loop iterates over experiments."""
-for i in range(num_exp):
+for i in range(0,0+num_exp):
     print(i)
     beta = rec_test_all[i:i+1, :, :, :]
     mask = mask_test_all[i:i+1, :, :, :]
@@ -94,8 +95,8 @@ for i in range(num_exp):
 
 
     """Calculate confidence intervals/radii according to the 3 methods."""
-    delta_asymp = (np.sqrt(sigma**2 /n)) * np.sqrt(np.log(1 / alpha))
-    delta_matrix = delta_matrix.flatten()
+    delta_old = (np.sqrt(((sigma**2)/2)/n)) * alpha_real #(np.sqrt(sigma**2 /n)) * np.sqrt(np.log(1 / alpha))
+    delta_matrix = delta_matrix.flatten().cpu()
     delta_gauss = (np.sqrt(((sigma**2)/2 + variance_real)/n)) * alpha_real
 
     gt = im2vec(gt)
@@ -103,54 +104,62 @@ for i in range(num_exp):
     diff = (gt-beta_u).cpu()
 
     # take nonzero elements or all elements and take difference between groundtruth  and unbiased beta
-    index_nonzero = torch.nonzero(gt[0, 0, :])
-    gt_nonzero = gt[0, :, index_nonzero]
-    beta_u_nonzero = beta_u[0, :, index_nonzero]
+    sorted_array = torch.sort(gt[0, 0, :])[1].cpu()
+    sorted_array = sorted_array[92160:]
+    print(sorted_array.shape)
+    print(gt.shape)
+    gt_nonzero = gt[0, :, sorted_array]
+    print(gt_nonzero)
+    print(gt_nonzero.shape)
+    beta_u_nonzero = beta_u[0, :, sorted_array]
     difference_nonzero = (gt_nonzero-beta_u_nonzero).cpu()
-    diff_nonzero = difference_nonzero[:,:, 0].cpu()
-    delta_matrix_nonzero = delta_matrix[index_nonzero]
+    print(difference_nonzero.shape)
+    diff_nonzero = difference_nonzero #[:,:, 0].cpu()
+    delta_matrix_nonzero = delta_matrix[sorted_array]
+    print('index nonzero shape',sorted_array.shape)
 
-    """Calculate data-driven adjusted hit rates"""
+    """Calculate new hit rates"""
     hitrate_all = 0
     hitrate_nonzero = 0
     for j in range(gt.size(2)):
-        if bool(np.sqrt(diff[0, 0, j]**2+diff[0, 1, j]**2) < delta_matrix[j]):
+        if bool(np.abs(diff[0, 0, j]) < delta_matrix[j]):
             hitrate_all += 1
     hitrates_all_matrix.append((hitrate_all/gt.size(2)))
     print('hitrates', (hitrate_all/gt.size(2)))
-    for k in range(gt_nonzero.size(0)):
-        if bool(np.sqrt(diff_nonzero[0,k]**2+diff_nonzero[1,k]**2) < delta_matrix_nonzero[k]):
+    print('shape of ground truth',gt_nonzero.shape)
+    for k in range(gt_nonzero.size(1)):
+        if bool(np.abs(diff_nonzero[0,k]) < delta_matrix_nonzero[k]):
             hitrate_nonzero += 1
-    hitrates_support_matrix.append(hitrate_nonzero/gt_nonzero.size(0))
-    print('hitrates', (hitrate_all / gt.size(2)))
+    hitrates_support_matrix.append(hitrate_nonzero/gt_nonzero.size(1))
+    print('hitrates', (hitrate_nonzero / gt_nonzero.size(1)))
 
     """Calculate gaussian adjusted hit rates """
     hitrate_all = 0
     hitrate_nonzero = 0
     for j in range(gt.size(2)):
-        if bool(diff[0, 0, j] < delta_gauss):
+        if bool(np.abs(diff[0, 0, j]) < delta_gauss):
             hitrate_all += 1
     hitrates_all_gauss.append((hitrate_all / gt.size(2)))
     print('hitrates', (hitrate_all / gt.size(2)))
-    for k in range(gt_nonzero.size(0)):
-        if bool(diff_nonzero[0,k] < delta_gauss):
+    for k in range(gt_nonzero.size(1)):
+        if bool(np.abs(diff_nonzero[0,k]) < delta_gauss):
             hitrate_nonzero += 1
-    hitrates_support_gauss.append(hitrate_nonzero / gt_nonzero.size(0))
-    print('hitrates', (hitrate_all / gt.size(2)))
+    hitrates_support_gauss.append(hitrate_nonzero / gt_nonzero.size(1))
+    print('hitrates', (hitrate_nonzero / gt_nonzero.size(1)))
 
     """Calculate asymptotic hit rates"""
     hitrate_all = 0
     hitrate_nonzero = 0
     for j in range(gt.size(2)):
-        if bool(np.sqrt(diff[0, 0, j]**2+diff[0, 1, j]**2) < delta_asymp):
+        if bool(np.abs(diff[0, 0, j]) < delta_old):
             hitrate_all += 1
-    hitrates_all_asymp.append((hitrate_all / gt.size(2)))
+    hitrates_all_old.append((hitrate_all / gt.size(2)))
     print('hitrates', (hitrate_all / gt.size(2)))
-    for k in range(gt_nonzero.size(0)):
-        if bool(np.sqrt(diff_nonzero[0,k]**2+diff_nonzero[1,k]**2) < delta_asymp):
+    for k in range(gt_nonzero.size(1)):
+        if bool(np.abs(diff_nonzero[0,k]) < delta_old):
             hitrate_nonzero += 1
-    hitrates_support_asymp.append(hitrate_nonzero / gt_nonzero.size(0))
-    print('hitrates', (hitrate_all / gt.size(2)))
+    hitrates_support_old.append(hitrate_nonzero / gt_nonzero.size(1))
+    print('hitrates', (hitrate_nonzero / gt_nonzero.size(1)))
 
 """Print the Average errors, normed R and Ws"""
 print('########## Average results #######')
@@ -159,7 +168,7 @@ print('L2-Norm Differenz mean:', sum(error_l2)/len(error_l2))
 print('Loo-Norm Differenz mean:', sum(error_infty)/len(error_infty))
 print('L2-Norm u-Differenz mean:',  sum(deb_error_l2)/(len(deb_error_l2)))
 print('Loo-Norm u-Differenz mean:', sum(deb_error_infty)/len(deb_error_infty))
-dataframe = pd.DataFrame({'hitrates all new': hitrates_all_matrix, 'hitrates support new': hitrates_support_matrix, 'hitrates all gauss': hitrates_all_gauss, 'hitrates support gauss': hitrates_support_gauss, 'hitrates all asymp': hitrates_all_asymp, 'hitrates support asymp': hitrates_support_asymp})
+dataframe = pd.DataFrame({'hitrates all new': hitrates_all_matrix, 'hitrates support new': hitrates_support_matrix, 'hitrates all gauss': hitrates_all_gauss, 'hitrates support gauss': hitrates_support_gauss, 'hitrates all old': hitrates_all_old, 'hitrates support old': hitrates_support_old})
 print()
 print('L2-Norm Remainder term with M mean:', sum(restterm_l2)/len(restterm_l2))
 print('Loo-Norm Remainder term with M mean:', sum(restterm_infty)/len(restterm_infty))
@@ -171,8 +180,8 @@ print('hitrate mean matrix:', sum(hitrates_all_matrix)/(len(hitrates_all_matrix)
 print('hitrate support mean matrix:', sum(hitrates_support_matrix)/(len(hitrates_support_matrix)))
 print('hitrate mean gauss:', sum(hitrates_all_gauss)/(len(hitrates_all_gauss)))
 print('hitrate support mean gauss:', sum(hitrates_support_gauss)/(len(hitrates_support_gauss)))
-print('hitrate mean asymp:', sum(hitrates_all_asymp)/(len(hitrates_all_asymp)))
-print('hitrate support mean asymp:', sum(hitrates_support_asymp)/(len(hitrates_support_asymp)))
+print('hitrate mean old:', sum(hitrates_all_old)/(len(hitrates_all_old)))
+print('hitrate support mean old:', sum(hitrates_support_old)/(len(hitrates_support_old)))
 print(dataframe)
-dataframe.to_csv(os.path.join(path,'dataframe_CI_{}.dat'.format(alpha)))
+dataframe.to_csv(os.path.join(path,'dataframe_CI_real_{}_test.dat'.format(alpha)))
 

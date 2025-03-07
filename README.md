@@ -29,12 +29,13 @@ Those experiments are implemented in Matlab.
 
 If you use the method or the code, please cite the arXiv paper:
 ```
-@article{hoppe2024nonasymp,
-  title={{Non-Asymptotic Uncertainty Quantification in High-Dimensional Learning}},
-  author={Hoppe, Frederik and Verdun, Claudio Mayrink and Laus, Hannah and Krahmer, Felix and Rauhut, Holger},
-  journal={arXiv preprint arXiv:},
-  year={2024},
-  doi={} 
+@article{hoppe2024non,
+  title={Non-Asymptotic Uncertainty Quantification in High-Dimensional Learning},
+  author={Hoppe, Frederik and Mayrink Verdun, Claudio and Laus, Hannah and Krahmer, Felix and Rauhut, Holger},
+  journal={Advances in Neural Information Processing Systems},
+  volume={37},
+  pages={122524--122555},
+  year={2024}
 }
 ```
 

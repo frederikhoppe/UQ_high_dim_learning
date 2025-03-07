@@ -9,7 +9,7 @@ import os
 This script estimates the variance and the standard deviation of the restterm on the estimation dataset.
 """
 # read in data
-path = 'results/test_results_itnet_60per_noisy_rest/'
+path = 'results/test_results_itnet_noisy_rest/'
 
 rec_test_all = torch.load(os.path.join(path, "rec_test_all.pt"))
 mask_test_all = torch.load(os.path.join(path,"mask_test_all.pt"))
@@ -31,6 +31,7 @@ variance_restterm_all = []
 hitrates_support = []
 hitrates_all = []
 restterm_real = []
+restterm_imag = []
 
 """Loop iterates over experiments."""
 for i in range(num_exp):
@@ -81,15 +82,24 @@ for i in range(num_exp):
 restterm_expectation_matrix = (1/num_exp)*sum(restterm_all)
 restterm_expectation_real = (1/num_exp)*sum(restterm_real)
 variance_restterm_matrix = 0
+variance_restterm_real_matrix = 0
 variance_restterm_real = 0
+variance_restterm_imag = 0
 for j in range(num_exp):
     variance_restterm_matrix += (restterm_all[j]-restterm_expectation_matrix)**2
+    variance_restterm_real_matrix += (restterm_real[j]-restterm_expectation_real)**2
     variance_restterm_real += (restterm_real[j])**2
+    variance_restterm_imag += (restterm_imag[j])**2
 variance_restterm_matrix = (1/(num_exp-1))*variance_restterm_matrix
+variance_restterm_real_matrix = (1/(num_exp-1))*variance_restterm_real_matrix
 variance_restterm_real = (1/(num_exp-1))*variance_restterm_real
+variance_restterm_imag = (1/(num_exp-1))*variance_restterm_imag
 torch.save(variance_restterm_matrix,os.path.join(path,"variance_restterm_matrix.pt"))
 torch.save(restterm_expectation_matrix, os.path.join(path,"restterm_expectation_matrix.pt"))
+torch.save(variance_restterm_real_matrix,os.path.join(path, "variance_restterm_real_matrix.pt"))
+torch.save(restterm_expectation_real, os.path.join(path,"restterm_expectation_real_matrix.pt"))
 variance_real = n*(1/(320**2))*sum(variance_restterm_real.flatten())
+variance_imag = n*(1/(320**2))*sum(variance_restterm_imag.flatten())
 torch.save(variance_real, os.path.join(path,"variance_restterm_real.pt"))
 
 
@@ -114,3 +124,4 @@ print('Loo-Norm Remainder term mean:', sum(restterm_infty)/len(restterm_infty))
 print('L2-Norm Gauss term mean:', sum(gaussterm_l2)/(len(gaussterm_l2)))
 print('Loo-Norm Gauss term mean:', sum(gaussterm_infty)/len(gaussterm_infty))
 print()
+
